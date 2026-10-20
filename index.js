@@ -1,11 +1,11 @@
 const express = require('express');
-const { GoogleGenAI } = require('@google/genai'); // atau import sesuai setup lama Anda
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
 app.use(express.json());
 
-// Inisialisasi Google Gen AI (sesuaikan dengan setup key Anda sebelumnya)
-const googleAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Inisialisasi dengan penamaan kelas yang benar: GoogleGenerativeAI
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 app.post('/screen-cv', async (req, res) => {
   try {
@@ -30,11 +30,12 @@ Berikan output STRICTLY dalam format JSON berikut (tanpa Markdown formatting sep
   "phoneNumber": "<nomor_telepon_atau_whatsapp_kandidat_jika_ada_jika_tidak_temukan_tulis_tanda_deret_strip_atau_tidak_ada>"
 }`;
 
-    const model = googleAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    // Memanggil model menggunakan instance genAI
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
     
-    // Bersihkan format markdown jika ada
+    // Membersihkan format markdown jika terbawa
     const cleanedText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
     const parsedData = JSON.parse(cleanedText);
 
@@ -51,7 +52,7 @@ Berikan output STRICTLY dalam format JSON berikut (tanpa Markdown formatting sep
   }
 });
 
-// Export untuk Vercel / Jalankan server lokal
+// Export untuk Vercel
 module.exports = app;
 
 if (process.env.NODE_ENV !== 'production') {
