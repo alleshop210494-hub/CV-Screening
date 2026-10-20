@@ -2,7 +2,6 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const { GoogleGenAI } = require('@google/genai');
-const localtunnel = require('localtunnel');
 
 const app = express();
 app.use(bodyParser.json({ limit: '10mb' }));
@@ -49,7 +48,7 @@ app.post('/screen-cv', async (req, res) => {
     `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       contents: prompt,
     });
 
@@ -79,29 +78,10 @@ app.post('/screen-cv', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, async () => {
-  console.log(`Server automation screening CV berjalan di port ${PORT}`);
-
-  // Otomatis membuat public URL agar bisa diakses Google Apps Script
-  try {
-    const tunnel = await localtunnel({ port: PORT });
-    console.log(`\n========================================`);
-    console.log(`URL PUBLIC WEBHOOK ANDA: ${tunnel.url}/screen-cv`);
-    console.log(`========================================\n`);
-
-    tunnel.on('close', () => {
-      console.log('Tunnel ditutup.');
-    });
-  } catch (err) {
-    console.error('Gagal membuat localtunnel:', err);
-  }
-});
-
-// Ekspor aplikasi agar dibaca oleh Vercel Serverless
+// Ekspor aplikasi agar kompatibel dengan Vercel Serverless
 module.exports = app;
 
-// Jalankan server lokal jika bukan di Vercel
+// Jalankan server secara lokal hanya jika tidak berada di environment production (Vercel)
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
