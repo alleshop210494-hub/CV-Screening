@@ -1,90 +1,60 @@
-require('dotenv').config();
 const express = require('express');
-const bodyParser = require('body-parser');
-const { GoogleGenAI } = require('@google/genai');
+const { GoogleGenAI } = require('@google/genai'); // atau import sesuai setup lama Anda
 
 const app = express();
-app.use(bodyParser.json({ limit: '10mb' }));
+app.use(express.json());
 
-// Inisialisasi Google AI Studio (Gemini API)
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Inisialisasi Google Gen AI (sesuaikan dengan setup key Anda sebelumnya)
+const googleAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-// ==========================================
-// TENTUKAN POSISI DAN KUALIFIKASI DI SINI
-// ==========================================
-const JOB_TITLE = 'Sales (Node.js)';
-const JOB_REQUIREMENTS = `
-  - Pendidikan minimal S1 Teknik Industri atau bidang terkait.
-  - Mengelola dan memperluas basis pelanggan B2B dan B2C.
-  - Mengembangkan program kerja penjualan dan ekspansi ke wilayah baru
-  - Bekerja lintas departemen demi memastikan kepuasan pelanggan.
-`;
-
-// Endpoint utama untuk menerima teks CV dari Google Apps Script
 app.post('/screen-cv', async (req, res) => {
   try {
-    const { cvText } = req.body;
+    const { cvText, jobPosition, jobRequirements } = req.body;
 
-    if (!cvText) {
-      return res.status(400).json({ error: 'Teks CV tidak ditemukan.' });
-    }
+    const prompt = `Anda adalah seorang HR Recruiter profesional.
+Tugas Anda adalah:
+1. Menilai seberapa cocok CV kandidat dengan posisi dan kriteria pekerjaan berikut.
+2. Mengekstrak nomor telepon/WhatsApp kandidat yang tertera di dalam teks CV.
 
-    // Prompt analisis CV yang disesuaikan dengan kualifikasi lowongan
-    const prompt = `
-      Bertindaklah sebagai HRD profesional. Analisis teks CV atau lamaran berikut berdasarkan KUALIFIKASI LOWONGAN PEKERJAAN yang telah ditentukan. Berikan penilaian skor dari 0 sampai 100 berdasarkan seberapa cocok kandidat dengan kualifikasi tersebut.
+Posisi Pekerjaan: ${jobPosition || 'Umum'}
+Kriteria & Syarat Pekerjaan:
+${jobRequirements}
 
-      Posisi yang Dibuka: ${JOB_TITLE}
-      Kualifikasi yang Dicari:
-      ${JOB_REQUIREMENTS}
+Teks CV Kandidat:
+${cvText}
 
-      Berikan penilaian dalam format JSON murni tanpa markdown backticks (tanpa \`\`\`json), dengan struktur persis seperti ini:
-      {
-        "score": (angka bulat dari 0 sampai 100),
-        "summary": "Ringkasan singkat mengapa kandidat mendapatkan skor tersebut berdasarkan kecocokannya dengan kualifikasi di atas (maksimal 3 kalimat)"
-      }
+Berikan output STRICTLY dalam format JSON berikut (tanpa Markdown formatting seperti \`\`\`json):
+{
+  "score": <angka_0_sampai_100>,
+  "summary": "<alasan_singkat_mengapa_kandidat_mendapat_skor_tersebut_berdasarkan_kriteria>",
+  "phoneNumber": "<nomor_telepon_atau_whatsapp_kandidat_jika_ada_jika_tidak_temukan_tulis_tanda_deret_strip_atau_tidak_ada>"
+}`;
 
-      Teks CV Kandidat:
-      ${cvText}
-    `;
+    const model = googleAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
+    
+    // Bersihkan format markdown jika ada
+    const cleanedText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+    const parsedData = JSON.parse(cleanedText);
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: prompt,
-    });
-
-    // Membersihkan respons dari format markdown jika ada
-    let cleanText = response.text.trim();
-    cleanText = cleanText.replace(/```json/g, '').replace(/```/g, '').trim();
-
-    let aiResult;
-    try {
-      aiResult = JSON.parse(cleanText);
-    } catch (parseError) {
-      return res.status(500).json({ error: 'Gagal memparsing respons AI ke format JSON.', rawResponse: response.text });
-    }
-
-    // Mengembalikan hasil analisis ke Google Apps Script
-    return res.status(200).json({ 
-      status: 'SUCCESS', 
-      data: {
-        score: aiResult.score,
-        summary: aiResult.summary
-      } 
+    res.json({
+      status: 'SUCCESS',
+      data: parsedData
     });
 
   } catch (error) {
-    console.error('Error saat screening CV:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      status: 'ERROR',
+      message: error.message
+    });
   }
 });
 
-// Ekspor aplikasi agar kompatibel dengan Vercel Serverless
+// Export untuk Vercel / Jalankan server lokal
 module.exports = app;
 
-// Jalankan server secara lokal hanya jika tidak berada di environment production (Vercel)
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    console.log(`Server automation screening CV berjalan di port ${PORT}`);
-  });
+  app.listen(PORT, () => console.log(`Server berjalan di port ${PORT}`));
 }
