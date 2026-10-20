@@ -4,13 +4,27 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const app = express();
 app.use(express.json());
 
-// Inisialisasi dengan penamaan kelas yang benar: GoogleGenerativeAI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
 app.post('/screen-cv', async (req, res) => {
   try {
-    const { cvText, jobPosition, jobRequirements } = req.body;
+    // 1. Cek apakah API Key sudah terpasang di Environment Variables Vercel
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ 
+        status: 'ERROR', 
+        message: 'GEMINI_API_KEY belum diatur di Environment Variables Vercel.' 
+      });
+    }
 
+    const { cvText, jobPosition, jobRequirements } = req.body;
+    
+    if (!cvText) {
+      return res.status(400).json({ 
+        status: 'ERROR', 
+        message: 'Teks CV tidak ditemukan dalam payload.' 
+      });
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
     const prompt = `Anda adalah seorang HR Recruiter profesional.
 Tugas Anda adalah:
 1. Menilai seberapa cocok CV kandidat dengan posisi dan kriteria pekerjaan berikut.
@@ -30,32 +44,25 @@ Berikan output STRICTLY dalam format JSON berikut (tanpa Markdown formatting sep
   "phoneNumber": "<nomor_telepon_atau_whatsapp_kandidat_jika_ada_jika_tidak_temukan_tulis_tanda_deret_strip_atau_tidak_ada>"
 }`;
 
-    // Memanggil model menggunakan instance genAI
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
     
-    // Membersihkan format markdown jika terbawa
     const cleanedText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
     const parsedData = JSON.parse(cleanedText);
 
-    res.json({
+    return res.json({
       status: 'SUCCESS',
       data: parsedData
     });
 
   } catch (error) {
-    res.status(500).json({
+    // Tangkap semua error dan kirimkan sebagai JSON agar Google Apps Script tidak syntax error
+    return res.status(500).json({
       status: 'ERROR',
       message: error.message
     });
   }
 });
 
-// Export untuk Vercel
 module.exports = app;
-
-if (process.env.NODE_ENV !== 'production') {
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => console.log(`Server berjalan di port ${PORT}`));
-}
