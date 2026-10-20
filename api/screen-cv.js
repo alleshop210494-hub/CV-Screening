@@ -1,7 +1,6 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 module.exports = async (req, res) => {
-  // Hanya izinkan method POST
   if (req.method !== 'POST') {
     return res.status(405).json({ status: 'ERROR', message: 'Method not allowed' });
   }
@@ -25,6 +24,10 @@ module.exports = async (req, res) => {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
+    
+    // Menggunakan model gemini-1.5-flash yang kompatibel
+    const model = genAI.getGenerativeModel({ model: "gemini-3.8-flash" });
+    
     const prompt = `Anda adalah seorang HR Recruiter profesional.
 Tugas Anda adalah:
 1. Menilai seberapa cocok CV kandidat dengan posisi dan kriteria pekerjaan berikut.
@@ -44,7 +47,6 @@ Berikan output STRICTLY dalam format JSON berikut (tanpa Markdown formatting sep
   "phoneNumber": "<nomor_telepon_atau_whatsapp_kandidat_jika_ada_jika_tidak_temukan_tulis_tanda_deret_strip_atau_tidak_ada>"
 }`;
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
     
