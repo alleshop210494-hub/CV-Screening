@@ -5,6 +5,10 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "express": "^4.18.2"
+    "@google/genai": "^2.30.0",
+    "body-parser": "^2.3.0",
+    "dotenv": "^18.0.8",
+    "express": "^4.22.3",
+    "localtunnel": "^2.0.2"
   }
 }
