@@ -97,3 +97,14 @@ app.listen(PORT, async () => {
     console.error('Gagal membuat localtunnel:', err);
   }
 });
+
+// Ekspor aplikasi agar dibaca oleh Vercel Serverless
+module.exports = app;
+
+// Jalankan server lokal jika bukan di Vercel
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`Server automation screening CV berjalan di port ${PORT}`);
+  });
+}
